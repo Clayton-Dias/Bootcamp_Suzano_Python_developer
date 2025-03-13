@@ -3,11 +3,10 @@ from abc import ABC, abstractclassmethod, abstractproperty
 from datetime import datetime
 
 
-class ContasIterador:
+class ContaIterador:
     """
-    Iterador para a lista de contas, formatando a saída de cada conta.
+    Iterador para a lista de contas, permitindo percorrer as contas uma a uma.
     """
-
     def __init__(self, contas):
         """
         Inicializa o iterador com a lista de contas.
@@ -16,7 +15,7 @@ class ContasIterador:
             contas (list): A lista de contas a serem iteradas.
         """
         self.contas = contas
-        self._index = 0
+        self.index = 0
 
     def __iter__(self):
         """
@@ -26,32 +25,26 @@ class ContasIterador:
 
     def __next__(self):
         """
-        Retorna a próxima conta na lista, formatada como uma string.
+        Retorna a próxima conta na lista.
 
         Raises:
             StopIteration: Se não houver mais contas na lista.
 
         Returns:
-            str: A representação formatada da próxima conta.
+            Conta: A próxima conta na lista.
         """
-        try:
-            conta = self.contas[self._index]
-            self._index += 1 #incrementa o contador aqui para garantir a execução
-            return f"""\
-            Agência:\t{conta.agencia}
-            Número:\t\t{conta.numero}
-            Titular:\t{conta.cliente.nome}
-            Saldo:\t\tR$ {conta.saldo:.2f}
-            """
-        except IndexError:
+        if self.index < len(self.contas):
+            conta = self.contas[self.index]
+            self.index += 1
+            return conta
+        else:
             raise StopIteration
-        
+
 
 class Cliente:
     def __init__(self, endereco):
         self.endereco = endereco
         self.contas = []
-        self.indice_conta = 0
 
     def realizar_transacao(self, conta, transacao):
         transacao.registrar(conta)
@@ -174,14 +167,12 @@ class Historico:
             {
                 "tipo": transacao.__class__.__name__,
                 "valor": transacao.valor,
-                "data": datetime.now().strftime("%d-%m-%Y %H:%M:%s"),
+                "data": datetime.now().strftime("%d-%m-%Y %H:%M"),
             }
         )
 
     def gerar_relatorio(self, tipo_transacao=None):
-        for transacao in self._transacoes:
-            if tipo_transacao is None or transacao["tipo"].lower() == tipo_transacao.lower():
-                yield transacao
+        pass
 
 
 class Transacao(ABC):
@@ -226,12 +217,12 @@ class Deposito(Transacao):
 
 
 def log_transacao(func):
-    def envelope(*args, **kwargs):
+    def wrapper(*args, **kwargs):
+        print(f"Transação iniciada: {func.__name__}")
         resultado = func(*args, **kwargs)
-        print(f"{datetime.now()}: {func.__name__.upper()}")
+        print(f"Transação finalizada: {func.__name__}")
         return resultado
-
-    return envelope
+    return wrapper
 
 
 def menu():
@@ -314,14 +305,15 @@ def exibir_extrato(clientes):
         return
 
     print("\n================ EXTRATO ================")
-    extrato = ""
-    tem_transacao = False
-    for transacao in conta.historico.gerar_relatorio(tipo_transacao="saque"):
-        tem_transacao = True
-        extrato += f"\n{transacao['tipo']}:\n\tR$ {transacao['valor']:.2f}"
+    #TODO: atualizar a implementação para utilizar o gerador definido em Historico
+    transacoes = conta.historico.transacoes
 
-    if not tem_transacao:
-        extrato = "Não foram realizadas movimentações"
+    extrato = ""
+    if not transacoes:
+        extrato = "Não foram realizadas movimentações."
+    else:
+        for transacao in transacoes:
+            extrato += f"\n{transacao['tipo']}:\n\tR$ {transacao['valor']:.2f}"
 
     print(extrato)
     print(f"\nSaldo:\n\tR$ {conta.saldo:.2f}")
@@ -366,14 +358,15 @@ def criar_conta(numero_conta, clientes, contas):
 
 def listar_contas(contas):
     """
-    Lista as contas utilizando o iterador ContasIterador.
+    Lista as contas utilizando o iterador ContaIterador.
 
     Args:
         contas (list): A lista de contas a serem listadas.
     """
-    for conta_str in ContasIterador(contas):
+    conta_iterador = ContaIterador(contas)
+    for conta in conta_iterador:
         print("=" * 100)
-        print(textwrap.dedent(conta_str))
+        print(textwrap.dedent(str(conta)))
 
 
 def main():
